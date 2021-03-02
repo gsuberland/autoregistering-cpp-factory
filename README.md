@@ -174,15 +174,14 @@ The following links were useful while writing this:
 - http://derydoca.com/2019/03/c-tutorial-auto-registering-factory/
 - https://stackoverflow.com/questions/18701798/building-and-accessing-a-list-of-types-at-compile-time/18704609#18704609
 
-## License
-
-This code is released under [MIT license](LICENSE.txt). See the link for the full text of the license.
-
-If you use this code in a public project or product, I would appreciate a mention :)
-
 ## Thanks
 
 Thanks to [Bartlomiej Filipek](https://www.bfilipek.com/) and [Derrick Canfield](http://derydoca.com/) for their blog posts on this topic.
 
 Thanks to [Benji Smith](https://twitter.com/benjinsmith) and [@sdelang_asu](https://twitter.com/sdelang_asu) for helping out on Twitter.
 
+## License
+
+This code is released under [MIT license](LICENSE.txt). See the link for the full text of the license.
+
+If you use this code in a public project or product, I would appreciate a mention :)
