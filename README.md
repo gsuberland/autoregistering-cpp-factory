@@ -193,6 +193,10 @@ public:
 
 This creates two separate factories, which may be accessed via `Factory<Pet, int>` and `Factory<Pet, int, bool>` respectively.
 
+## Naming clashes
+
+If you've already got a type called `Factory` in your code, you can define `FACTORY_TYPE_NAME` before including `factory.h` in order to change the name of the factory type. For example, if you wrote `#define FACTORY_TYPE_NAME GenericAutoFactory` you would then use `GenericAutoFactory<...>` instead of `Factory<...>` in your code.
+
 ## Includes
 
 No includes are added to the top of the file, with the exception of `<memory>` if `FACTORY_USE_UNIQUEPTR` is defined, since I use precompiled headers in my projects. The code only requires `<map>` and `<cstdio>`. The latter is used only for the `cmp_cstr` comparison implementation that allows `const char*` strings to be used as keys in the map.

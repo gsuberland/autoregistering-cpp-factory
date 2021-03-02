@@ -14,6 +14,11 @@
 // define this if you're on Arduino and you don't want to have an assertion failure on trying to create a type that isn't in the factory
 //#define FACTORY_NO_ARDUINO_ASSERT
 
+// define FACTORY_TYPE_NAME in your code if you want to change Factory<...> to some other name, in case of a name conflict.
+#ifndef FACTORY_TYPE_NAME
+#define FACTORY_TYPE_NAME Factory
+#endif
+
 #ifdef FACTORY_USE_UNIQUEPTR
 #include <memory>
 #ifndef FACTORY_NO_MAKE_UNIQUE_SHIM
@@ -39,10 +44,10 @@ struct cmp_cstr
 
 // main factory type. T is the base type for the factory, TArgs are the types of the arguments passed to the constructor
 template<typename T, typename ...TArgs>
-class Factory
+class FACTORY_TYPE_NAME
 {
   public:
-    Factory() = delete;
+    FACTORY_TYPE_NAME() = delete;
 
     // registration function. takes a unique name/key for the type, and a pointer to a function that creates an instance of the type.
     // FACTORY_T_PTR is usually T*, but it may be unique_ptr<T>
@@ -92,7 +97,7 @@ class Factory
 
 // register a type with the factory
 template<typename T, typename ...TArgs>
-bool Factory<T, TArgs...>::Register(const char* name, FACTORY_T_PTR(*funcCreate)(TArgs...))
+bool FACTORY_TYPE_NAME<T, TArgs...>::Register(const char* name, FACTORY_T_PTR(*funcCreate)(TArgs...))
 {
   auto registeredTypes = GetMap();
   auto typeTuple = registeredTypes->find(name);
@@ -106,7 +111,7 @@ bool Factory<T, TArgs...>::Register(const char* name, FACTORY_T_PTR(*funcCreate)
 
 // create a type by name
 template<typename T, typename ...TArgs>
-FACTORY_T_PTR Factory<T, TArgs...>::Create(const char* name, TArgs... args)
+FACTORY_T_PTR FACTORY_TYPE_NAME<T, TArgs...>::Create(const char* name, TArgs... args)
 {
   auto registeredTypes = GetMap();
   auto typeTuple = registeredTypes->find(name);
@@ -120,7 +125,7 @@ FACTORY_T_PTR Factory<T, TArgs...>::Create(const char* name, TArgs... args)
 
 // return true if the given type is registered
 template<typename T, typename ...TArgs>
-bool Factory<T, TArgs...>::IsRegistered(const char* name)
+bool FACTORY_TYPE_NAME<T, TArgs...>::IsRegistered(const char* name)
 {
   auto registeredTypes = GetMap();
   auto typeTuple = registeredTypes->find(name);
@@ -140,7 +145,7 @@ class RegisteredInFactory
 
 // registration initialiser
 template<typename TParent, typename TClass, typename ...TArgs>
-bool RegisteredInFactory<TParent, TClass, TArgs...>::_FACTORY_INIT = Factory<TParent, TArgs...>::Register(TClass::GetFactoryKey(), TClass::CreateInstance);
+bool RegisteredInFactory<TParent, TClass, TArgs...>::_FACTORY_INIT = FACTORY_TYPE_NAME<TParent, TArgs...>::Register(TClass::GetFactoryKey(), TClass::CreateInstance);
 
 // if you've got one constructor, reference this in your class constructor to prevent the compiler from yeeting the initialiser and template during optimisation
 #define FACTORY_INIT (void)_FACTORY_INIT;
