@@ -9,6 +9,7 @@ Here's an example usage:
 ```cpp
 #include "factory.h"
 
+// a base type, for which we would like to create a factory
 class Pet
 {
 protected:
@@ -19,6 +20,7 @@ public:
     virtual const char* GetGreeting() = 0;
 };
 
+// first type being added to the factory
 class Cat : public Pet, RegisteredInFactory<Pet, Cat, int>
 {
 public:
@@ -37,6 +39,7 @@ public:
         return new Cat(age);
     }
     
+    // the unique identifier of this type in the factory
     static const char* GetFactoryKey()
     {
         return "Cat";
@@ -48,6 +51,7 @@ public:
     }
 };
 
+// another type being added to the factory
 class Dog : public Pet, RegisteredInFactory<Pet, Dog, int>
 {
 public:
