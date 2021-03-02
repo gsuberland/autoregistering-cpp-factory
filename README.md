@@ -174,6 +174,7 @@ public:
     Dog(int age, bool hungry)
     {
         FACTORY_INIT_MANY(Pet, Dog, int, bool);
+        /* ... */
     }
     
     static Pet* CreateInstance(int age)
