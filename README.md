@@ -151,6 +151,10 @@ using PetFactory = Factory<Pet, int, const char*, Pet**, Person*>;
 
 This allows you to use the API as `PetFactory::*` instead of needing to fully quality `Factory<...>` each time.
 
+## Includes
+
+No includes are added to the top of the file, with the exception of `<memory>` if `FACTORY_USE_UNIQUEPTR` is defined, since I use precompiled headers in my projects. The code only requires `<map>` and `<cstdio>`. The latter is used only for the `cmp_cstr` comparison implementation that allows `const char*` strings to be used as keys in the map.
+
 ## Motivation
 
 I often run into cases where I'd much prefer to have a little extra code on each class instead of a switch statement in a factory somewhere. The compiler will generally shout at me if I mess the factory decoration up or `CreateInstance` / `GetFactoryKey` functions up, but it's much easier for me to forget to add a type to its factory. I also like the generic-ness of this approach, since I don't need to write a new factory class for each base type.
