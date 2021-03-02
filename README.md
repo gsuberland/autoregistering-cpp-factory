@@ -1,6 +1,6 @@
 # Auto-registering C++ factory
 
-This is an auto-registering C++ factory, designed for C++11. It allows you to have classes register themselves to a factory at compile-time. Constructor parameters are supported.
+This is an auto-registering C++ factory, designed for C++11. It allows you to have classes register themselves to a factory, without needing to manually change the factory implementation each time you add a new type, or write a new factory for each base type. Constructor arguments are supported.
 
 It has been tested on gcc and clang, both on desktop and in Arduino code, compiled with `-O2 -Werror -std=c++11 -pedantic-errors`.
 
