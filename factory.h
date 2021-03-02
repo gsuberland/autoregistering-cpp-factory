@@ -22,21 +22,39 @@
 
 // define FACTORY_TYPE_NAME in your code if you want to change Factory<...> to some other name, in case of a name conflict.
 #ifndef FACTORY_TYPE_NAME
-#define FACTORY_TYPE_NAME Factory
+  #define FACTORY_TYPE_NAME Factory
 #endif
 
-#ifdef FACTORY_USE_UNIQUEPTR
-#include <memory>
-#ifndef FACTORY_NO_MAKE_UNIQUE_SHIM
-template<typename T, typename... Args>
-std::unique_ptr<T> make_unique(Args&&... args)
-{
-  return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-}
+// define FACTORY_KEY_TYPE in your code if you want to change the type of the key from const char* to something else.
+#ifndef FACTORY_KEY_TYPE
+  #define FACTORY_KEY_TYPE_IS_DEFAULT
+  #define FACTORY_KEY_TYPE const char*
 #endif
-#define FACTORY_T_PTR std::unique_ptr<T>
+
+// define FACTORY_KEY_COMPARATOR in your code if you want to change the comparator that is used for the map key.
+// by default it will use cmp_cstr (defined in this header) as a comparison, or std::equal_to<T> if you've defined FACTORY_KEY_TYPE
+#ifndef FACTORY_KEY_COMPARATOR
+  #ifdef FACTORY_KEY_TYPE_IS_DEFAULT
+    #define FACTORY_KEY_COMPARATOR cmp_cstr
+  #else
+    #define FACTORY_KEY_COMPARATOR std::equal_to<FACTORY_KEY_TYPE>
+  #endif
+#endif
+
+// define FACTORY_USE_UNIQUEPTR if you want to have the factory return unique_ptr<T> instead of T*
+// this also adds a shim for make_unique, for use in C++11, by default. you can define FACTORY_NO_MAKE_UNIQUE_SHIM if you don't want the shim.
+#ifdef FACTORY_USE_UNIQUEPTR
+  #include <memory>
+  #ifndef FACTORY_NO_MAKE_UNIQUE_SHIM
+    template<typename T, typename... Args>
+    std::unique_ptr<T> make_unique(Args&&... args)
+    {
+      return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+    }
+  #endif
+  #define FACTORY_T_PTR std::unique_ptr<T>
 #else
-#define FACTORY_T_PTR T*
+  #define FACTORY_T_PTR T*
 #endif
 
 // compare type for map<> so we can use const char* as a key
@@ -55,22 +73,22 @@ class FACTORY_TYPE_NAME
   public:
     FACTORY_TYPE_NAME() = delete;
 
-    // registration function. takes a unique name/key for the type, and a pointer to a function that creates an instance of the type.
+    // registration function. takes a unique key for the type, and a pointer to a function that creates an instance of the type.
     // FACTORY_T_PTR is usually T*, but it may be unique_ptr<T>
-    static bool Register(const char* name, FACTORY_T_PTR(*funcCreate)(TArgs...));
+    static bool Register(FACTORY_KEY_TYPE key, FACTORY_T_PTR(*funcCreate)(TArgs...));
 
-    // creates an instance of a type, by its name, with the provided constructor arguments.
-    static FACTORY_T_PTR Create(const char* name, TArgs... args);
+    // creates an instance of a type, by its key, with the provided constructor arguments.
+    static FACTORY_T_PTR Create(FACTORY_KEY_TYPE key, TArgs... args);
 
-    // returns true if a type is registered with a factory with the given name.
-    static bool IsRegistered(const char* name);
+    // returns true if a type is registered with a factory with the given key.
+    static bool IsRegistered(FACTORY_KEY_TYPE key);
 
   private:
     // internal function that is used to get at the map, initialising it on first access.
     // this is how we avoid undefined behaviour with static member initialisation order >:)
-    static std::map<const char*, FACTORY_T_PTR(*)(TArgs...), cmp_cstr>* GetMap()
+    static std::map<FACTORY_KEY_TYPE, FACTORY_T_PTR(*)(TArgs...), FACTORY_KEY_COMPARATOR>* GetMap()
     {
-      static std::map<const char*, FACTORY_T_PTR(*)(TArgs...), cmp_cstr> registeredTypesInternal;
+      static std::map<FACTORY_KEY_TYPE, FACTORY_T_PTR(*)(TArgs...), FACTORY_KEY_COMPARATOR> registeredTypesInternal;
       return &registeredTypesInternal;
     }
 
@@ -81,10 +99,10 @@ class FACTORY_TYPE_NAME
       return GetMap()->size();
     }
 
-    // get the name of the type at the given index
+    // get the key of the type at the given index
     // WARNING: this is O(n) on the index, so if you call this for every index in the factory this is O(n log n). this only matters in critical paths.
-    // if you want to access by index instead of name, I recommend keeping your own map of the indices to names.
-    static const char* GetNameByIndex(size_t index)
+    // if you want to access by index instead of key, I recommend keeping your own map of the indices to keys.
+    static FACTORY_KEY_TYPE GetKeyByIndex(size_t index)
     {
 #if ARDUINO && !FACTORY_NO_ARDUINO_ASSERT
       // assertion fail on Arduino, rather than returning nullptr.
@@ -103,24 +121,24 @@ class FACTORY_TYPE_NAME
 
 // register a type with the factory
 template<typename T, typename ...TArgs>
-bool FACTORY_TYPE_NAME<T, TArgs...>::Register(const char* name, FACTORY_T_PTR(*funcCreate)(TArgs...))
+bool FACTORY_TYPE_NAME<T, TArgs...>::Register(FACTORY_KEY_TYPE key, FACTORY_T_PTR(*funcCreate)(TArgs...))
 {
   auto registeredTypes = GetMap();
-  auto typeTuple = registeredTypes->find(name);
+  auto typeTuple = registeredTypes->find(key);
   if (typeTuple == registeredTypes->end())
   {
-    (*registeredTypes)[name] = funcCreate;
+    (*registeredTypes)[key] = funcCreate;
     return true;
   }
   return false;
 }
 
-// create a type by name
+// create a type by its key
 template<typename T, typename ...TArgs>
-FACTORY_T_PTR FACTORY_TYPE_NAME<T, TArgs...>::Create(const char* name, TArgs... args)
+FACTORY_T_PTR FACTORY_TYPE_NAME<T, TArgs...>::Create(FACTORY_KEY_TYPE key, TArgs... args)
 {
   auto registeredTypes = GetMap();
-  auto typeTuple = registeredTypes->find(name);
+  auto typeTuple = registeredTypes->find(key);
   if (typeTuple != registeredTypes->end())
   {
     FACTORY_T_PTR(*funcCreate)(TArgs...) = typeTuple->second;
@@ -131,10 +149,10 @@ FACTORY_T_PTR FACTORY_TYPE_NAME<T, TArgs...>::Create(const char* name, TArgs... 
 
 // return true if the given type is registered
 template<typename T, typename ...TArgs>
-bool FACTORY_TYPE_NAME<T, TArgs...>::IsRegistered(const char* name)
+bool FACTORY_TYPE_NAME<T, TArgs...>::IsRegistered(FACTORY_KEY_TYPE key)
 {
   auto registeredTypes = GetMap();
-  auto typeTuple = registeredTypes->find(name);
+  auto typeTuple = registeredTypes->find(key);
   if (typeTuple != registeredTypes->end())
       return true;
   return false;

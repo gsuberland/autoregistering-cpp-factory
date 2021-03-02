@@ -1,8 +1,14 @@
 # Auto-registering C++ factory
 
-This is an auto-registering C++ factory, designed for C++11. It allows you to have classes register themselves to a factory, without needing to manually change the factory implementation each time you add a new type, or write a new factory for each base type. Constructor arguments are supported.
+This is an auto-registering C++ factory, designed for C++11. It allows you to have classes register themselves to a factory, without needing to manually change the factory implementation each time you add a new type, or write a new factory for each base type. Constructor arguments are supported, as are overloaded constructors. Factory keys are typed as `const char*` by default, but this can be changed.
 
 It has been tested on gcc and clang, both on desktop and in Arduino code, compiled with `-O2 -Werror -std=c++11 -pedantic-errors`.
+
+## Motivation
+
+I often run into cases where I'd much prefer to have a little extra code on each class instead of a switch statement in a factory somewhere. The compiler will generally shout at me if I mess the factory decoration up or `CreateInstance` / `GetFactoryKey` functions up, but it's much easier for me to forget to add a type to its factory. I also like the generic-ness of this approach, since I don't need to write a new factory class for each base type.
+
+## Usage
 
 Here's an example usage:
 
@@ -85,11 +91,11 @@ int main()
     size_t registeredPetCount = Factory<Pet, int>::GetCount();
     for (size_t n = 0; n < registeredPetCount; n++)
     {
-        const char* name = Factory<Pet, int>::GetNameByIndex(n);
-        printf("%s was registered as a pet.\n", name);
+        const char* key = Factory<Pet, int>::GetKeyByIndex(n);
+        printf("%s was registered as a pet.\n", key);
         int age = 5 + n;
-        Pet* pet = Factory<Pet, int>::Create(name, age);
-        printf("The %s says %s\n", name, pet->GetGreeting());
+        Pet* pet = Factory<Pet, int>::Create(key, age);
+        printf("The %s says %s\n", key, pet->GetGreeting());
         delete pet;
     }
     return 0;
@@ -112,30 +118,30 @@ The Dog says Woof!
 The following APIs can be used to consume the factory:
 
 ```cpp
-// create BaseType object by name
-BaseType* Factory<BaseType>::Create(const char* name);
+// create BaseType object by key (case sensitive)
+BaseType* Factory<BaseType>::Create(const char* key);
 // same as above, but with FACTORY_USE_UNIQUEPTR defined.
-std::unique_ptr<BaseType> Factory<BaseType>::Create(const char* name);
-// create BaseType object by name, using a constructor with arguments (again there's a unique_ptr version)
-BaseType* Factory<BaseType, T1, T2, T3, ...>::Create(const char* name, T1 a, T2 b, T3 c, ...);
+std::unique_ptr<BaseType> Factory<BaseType>::Create(const char* key);
+// create BaseType object by key, using a constructor with arguments (again there's a unique_ptr version)
+BaseType* Factory<BaseType, T1, T2, T3, ...>::Create(const char* key, T1 a, T2 b, T3 c, ...);
 
 // get count of types registered in the factory
 size_t Factory<BaseType>::GetCount();
 size_t Factory<BaseType, T1, T2, T3, ...>::GetCount();
 
-// get name in the factory, by index
-const char* Factory<BaseType>::GetNameByIndex(size_t index);
-const char* Factory<BaseType, T1, T2, T3, ...>::GetNameByIndex(size_t index);
+// get the key from the factory at the given index (useful for iterating types in the factory)
+const char* Factory<BaseType>::GetKeyByIndex(size_t index);
+const char* Factory<BaseType, T1, T2, T3, ...>::GetKeyByIndex(size_t index);
 
-// check if a type is registered by name
-bool Factory<BaseType>::IsRegistered(const char* name);
-bool Factory<BaseType, T1, T2, T3, ...>::IsRegistered(const char* name);
+// check if a type is registered by key
+bool Factory<BaseType>::IsRegistered(const char* key);
+bool Factory<BaseType, T1, T2, T3, ...>::IsRegistered(const char* key);
 
 // advanced: for dynamically adding things to the factory at runtime
-bool Factory<BaseType>::Register(const char* name, T*(*funcCreate)());
-bool Factory<BaseType>::Register(const char* name, unique_ptr<T>(*funcCreate)());
-bool Factory<BaseType, T1, T2, T3, ...>::Register(const char* name, T*(*funcCreate)(T1,T2,T3,...));
-bool Factory<BaseType, T1, T2, T3, ...>::Register(const char* name, unique_ptr<T>(*funcCreate)(T1,T2,T3,...));
+bool Factory<BaseType>::Register(const char* key, T*(*funcCreate)());
+bool Factory<BaseType>::Register(const char* key, unique_ptr<T>(*funcCreate)());
+bool Factory<BaseType, T1, T2, T3, ...>::Register(const char* key, T*(*funcCreate)(T1,T2,T3,...));
+bool Factory<BaseType, T1, T2, T3, ...>::Register(const char* key, unique_ptr<T>(*funcCreate)(T1,T2,T3,...));
 ```
 
 The method for getting a class to register with a factory is as follows:
@@ -143,7 +149,7 @@ The method for getting a class to register with a factory is as follows:
 - Have it inherit from `RegisterWithFactory<TBase, TClass, ...>` where `TBase` is the base type for the factory, `TClass` is the class you're currently registering, and the remaining type parameters are the constructor argument types. For example, if your class is called `GZip`, its base is `ICompressionMethod`, and the constructor is `unsigned char*, size_t`, then you would inherit from `RegisterWithFactory<ICompressionMethod, GZip, unsigned char*, size_t> `.
 - Reference `FACTORY_INIT` somewhere in your class, preferably in the constructor. This has zero runtime cost; it is just necessary to prevent the compiler's optimisation steps from eliminating the template.
 - Include a public static `CreateInstance` method that creates a new instance of the class. Ensure that its parameters match the constructor.
-- Include a public static `GetFactoryKey` method that returns the unique `const char*` key/name that is used to refer to the type in the factory. If this is not unique, only one type with that key will be added, and which one it will be is undefined.
+- Include a public static `GetFactoryKey` method that returns the unique `const char*` key that is used to refer to the type in the factory. If this is not unique, only one type with that key will be added, and which one it will be is undefined.
 
 Take a look at the example at the top of this document for reference.
 
@@ -193,23 +199,27 @@ public:
 
 This creates two separate factories, which may be accessed via `Factory<Pet, int>` and `Factory<Pet, int, bool>` respectively.
 
-## Naming clashes
-
-If you've already got a type called `Factory` in your code, you can define `FACTORY_TYPE_NAME` before including `factory.h` in order to change the name of the factory type. For example, if you wrote `#define FACTORY_TYPE_NAME GenericAutoFactory` you would then use `GenericAutoFactory<...>` instead of `Factory<...>` in your code.
-
 ## Using unique_ptr
 
 You can use `unique_ptr<T>` as the return type for your factory's create function by defining `FACTORY_USE_UNIQUEPTR` before including `factory.h`. This is disabled by default since my use-case is on embedded systems and I don't want the overhead of smart pointers, and also because `make_unique` is a C++14 feature and this was designed for C++11.
 
 If you defined `FACTORY_USE_UNIQUEPTR`, a shim function called `make_unique` will be generated by default. This is to allow the feature to be used in C++11 if you want, albeit in a limited capacity (it uses `new` under the hood). If you don't want this shim, just define `FACTORY_NO_MAKE_UNIQUE_SHIM`.
 
+## Changing the key type
+
+By default the map key type is `const char*`, using a comparator of `cmp_cstr` which is implemented in the header, resulting in a case-sensitive ordinal comparison. You can change this by defining `FACTORY_KEY_TYPE` in your code, before including `factory.h`, setting its value to whatever key type you like.
+
+If you define `FACTORY_KEY_TYPE`, the map equality comparison type will automatically be set to `std::equal_to<FACTORY_KEY_TYPE>`; if you want to override this behaviour and choose your own equality comparison you can do so by defining `FACTORY_KEY_COMPARATOR`.
+
+For example, if you define `FACTORY_KEY_TYPE` to be `std::string`, then your `GetFactoryKey` methods must return `std::string` and all factory APIs will accept and return `std::string` types instead of the default `const char*`. The key equality comparator for the internal factory map will be set to `std::equal_to<std::string>`. Refer to `key_comp` in the [`std::map` reference](https://www.cplusplus.com/reference/map/map/map/) for details on the comparison predicate.
+
+## Renaming the factory
+
+If you've already got a type called `Factory` in your code, or you just want the factory class to have a different name for convenience, you can define `FACTORY_TYPE_NAME` before including `factory.h` in order to change the name of the factory type. For example, if you wrote `#define FACTORY_TYPE_NAME GenericAutoFactory` you would then use `GenericAutoFactory<...>` instead of `Factory<...>` in your code.
+
 ## Includes
 
 No includes are added to the top of the file, with the exception of `<memory>` if `FACTORY_USE_UNIQUEPTR` is defined, since I use precompiled headers in my projects. The code only requires `<map>` and `<cstring>`. The latter is used only for the `cmp_cstr` comparison implementation that allows `const char*` strings to be used as keys in the map.
-
-## Motivation
-
-I often run into cases where I'd much prefer to have a little extra code on each class instead of a switch statement in a factory somewhere. The compiler will generally shout at me if I mess the factory decoration up or `CreateInstance` / `GetFactoryKey` functions up, but it's much easier for me to forget to add a type to its factory. I also like the generic-ness of this approach, since I don't need to write a new factory class for each base type.
 
 ## How does this work?
 
@@ -219,7 +229,7 @@ Template magic, mostly. A static factory class is generated for each instance of
 
 This was written with the intent of using it on Arduino. I don't know if the `std::map` implementation ends up being too chonky for smaller devices (e.g. Uno), but it should be small enough for your average ESP8266 or ESP32 device.
 
-One feature you might want to be aware of is that, by default, when compiled for Arduino, an assertion failure will occur if you try to call `Factory<>::Create(name, ...)` with a name/key that does not exist in the map. I prefer being liberal with my use of `assert()` as it helps me catch bugs that would otherwise slip by me or be hard to debug, e.g. a random null pointer dereference due to an unchecked return value somewhere. If you would prefer to turn this off, define `FACTORY_NO_ARDUINO_ASSERT` before including the header. You do not need to worry about this on non-Arduino targets - the assert is only switched on for Arduino.
+One feature you might want to be aware of is that, by default, when compiled for Arduino, an assertion failure will occur if you try to call `Factory<>::Create(key, ...)` with a key that does not exist in the map. I prefer being liberal with my use of `assert()` as it helps me catch bugs that would otherwise slip by me or be hard to debug, e.g. a random null pointer dereference due to an unchecked return value somewhere. If you would prefer to turn this off, define `FACTORY_NO_ARDUINO_ASSERT` before including the header. You do not need to worry about this on non-Arduino targets - the assert is only switched on for Arduino.
 
 ## Reference
 
