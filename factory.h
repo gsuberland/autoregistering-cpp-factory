@@ -142,5 +142,7 @@ class RegisteredInFactory
 template<typename TParent, typename TClass, typename ...TArgs>
 bool RegisteredInFactory<TParent, TClass, TArgs...>::_FACTORY_INIT = Factory<TParent, TArgs...>::Register(TClass::GetFactoryKey(), TClass::CreateInstance);
 
-// reference this in your class constructors to prevent the compiler from yeeting the initialiser and template during optimisation
+// if you've got one constructor, reference this in your class constructor to prevent the compiler from yeeting the initialiser and template during optimisation
 #define FACTORY_INIT (void)_FACTORY_INIT;
+// if you've got multiple constructors, reference this in each of your class constructors, using the same type parameters as you applied to RegisteredInFactory<...>
+#define FACTORY_INIT_MANY(...) (void)(RegisteredInFactory<__VA_ARGS__>::_FACTORY_INIT);

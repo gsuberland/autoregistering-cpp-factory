@@ -140,12 +140,14 @@ bool Factory<BaseType, T1, T2, T3, ...>::Register(const char* name, unique_ptr<T
 
 The method for getting a class to register with a factory is as follows:
 
-- Have it inherit from `RegisterWithFactory<TBase, TClass, ...>` where `TBase` is the base type for the factory, `TClass` is the class you're currently registering, and the remaining type parameters are the constructor argument types. For example, if your class is called `GZip`, its base is `ICompressionMethod` constructor is `unsigned char*, size_t` then you would inherit from `RegisterWithFactory<ICompressionMethod, GZip, unsigned char*, size_t> `.
+- Have it inherit from `RegisterWithFactory<TBase, TClass, ...>` where `TBase` is the base type for the factory, `TClass` is the class you're currently registering, and the remaining type parameters are the constructor argument types. For example, if your class is called `GZip`, its base is `ICompressionMethod`, and the constructor is `unsigned char*, size_t`, then you would inherit from `RegisterWithFactory<ICompressionMethod, GZip, unsigned char*, size_t> `.
 - Reference `FACTORY_INIT` somewhere in your class, preferably in the constructor. This has zero runtime cost; it is just necessary to prevent the compiler's optimisation steps from eliminating the template.
 - Include a public static `CreateInstance` method that creates a new instance of the class. Ensure that its parameters match the constructor.
 - Include a public static `GetFactoryKey` method that returns the unique `const char*` key/name that is used to refer to the type in the factory. If this is not unique, only one type with that key will be added, and which one it will be is undefined.
 
 Take a look at the example at the top of this document for reference.
+
+You must include the exact same base type and constructor argument type list when referencing the factory. For example, if your class is registered as `RegisterWithFactory<ICompressionMethod, GZip, unsigned char*, size_t> `, the factory is referenced as `Factory<ICompressionMethod, unsigned char*, size_t>`.
 
 If you've got a lot of constructor parameters, you may wish to alias the factory type:
 
@@ -154,6 +156,41 @@ using PetFactory = Factory<Pet, int, const char*, Pet**, Person*>;
 ```
 
 This allows you to use the API as `PetFactory::*` instead of needing to fully quality `Factory<...>` each time.
+
+## Multiple constructors
+
+If you've got multiple constructors on a class, you can overload the static `CreateInstance` method and use multiple inheritance to include matching `RegisterWithFactory<>` types for each constructor that you want to have accessible via the factory. You must then reference `FACTORY_INIT_MANY(...)` in each constructor, instead of just `FACTORY_INIT`, passing the same types as were used in the `RegisterWithFactory<...>` type. For example:
+
+```cpp
+class Dog : public Pet, RegisteredInFactory<Pet, Dog, int>, RegisteredInFactory<Pet, Dog, int, bool>
+{
+public:
+    Dog(int age)
+    {
+        FACTORY_INIT_MANY(Pet, Dog, int);
+        /* ... */
+    }
+    
+    Dog(int age, bool hungry)
+    {
+        FACTORY_INIT_MANY(Pet, Dog, int, bool);
+    }
+    
+    static Pet* CreateInstance(int age)
+    {
+        return new Dog(age);
+    }
+    
+    static Pet* CreateInstance(int age, bool hungry)
+    {
+        return new Dog(age, hungry);
+    }
+    
+    /* ... */
+};
+```
+
+This creates two separate factories, which may be accessed via `Factory<Pet, int>` and `Factory<Pet, int, bool>` respectively.
 
 ## Includes
 
