@@ -205,7 +205,7 @@ If you defined `FACTORY_USE_UNIQUEPTR`, a shim function called `make_unique` wil
 
 ## Includes
 
-No includes are added to the top of the file, with the exception of `<memory>` if `FACTORY_USE_UNIQUEPTR` is defined, since I use precompiled headers in my projects. The code only requires `<map>` and `<cstdio>`. The latter is used only for the `cmp_cstr` comparison implementation that allows `const char*` strings to be used as keys in the map.
+No includes are added to the top of the file, with the exception of `<memory>` if `FACTORY_USE_UNIQUEPTR` is defined, since I use precompiled headers in my projects. The code only requires `<map>` and `<cstring>`. The latter is used only for the `cmp_cstr` comparison implementation that allows `const char*` strings to be used as keys in the map.
 
 ## Motivation
 

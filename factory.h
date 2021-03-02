@@ -7,6 +7,12 @@
  * 
  */
 
+// this code requires <map> and <cstring> to be included. uncomment them here if you're not including them elsewhere (e.g. using a PCH)
+/*
+#include <map>
+#include <cstring>
+*/
+
 // define this if you want to use unique_ptr<T> as the return type of Factory<>::Create()
 //#define FACTORY_USE_UNIQUEPTR
 // define this if you're using unique_ptr<T>, but don't want the code to include a C++11 shim version of make_unique<T>
